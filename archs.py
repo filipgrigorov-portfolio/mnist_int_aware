@@ -38,3 +38,8 @@ class MNISTNet(nn.Module):
         
     def forward(self, x):        
         return self.model_tail(self.model_head(x)).view(-1, self.num_classes)
+
+# Note: Distillation network
+class MNISTQuantizedNet(nn.Module):
+    def __init__(self):
+        pass

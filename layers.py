@@ -25,7 +25,8 @@ class DiscreteFunction(torch.autograd.Function):
 
     def backward(self, ctx, output_grad):
         # clip in [-1, 1]
-        return torch.nn.HardTanh(output_grad)
+        #return torch.nn.HardTanh(output_grad)
+        return torch.clip(output_grad, -1, 1)
 
 class Quantizer(nn.Module):
     def __init__(self, min_val, max_val, is_signed=False):
@@ -34,13 +35,19 @@ class Quantizer(nn.Module):
         self.is_signed = is_signed
 
         self.scale = torch.nn.Parameter(max_val - min_val, dtype=torch.int8)
-        self.zero_pnt = torch.nn.Paramter(0, dtype=torch.int8)
-        self.bit_depth = torch.nn.Paramter(8, dtype=torch.int8)
+        self.zero_pnt = torch.nn.Parameter(0, dtype=torch.int8)
+        self.bit_depth = torch.nn.Parameter(8, dtype=torch.int8)
 
     def forward(self, x):
         quantize = lambda x: torch.clamp()
         ste = DiscreteFunction(quantize)
-        val = 2 << self.bit_depth
-        half_val >>= 2
+        val = 1 << self.bit_depth
+        half_val >>= 1
         return ste.forward(quantize, -half_val - 1, half_val - 1) if self.is_signed \
             else ste.forward(quantize, 0, val - 1)
+
+class DeQuantizer(nn.Module):
+    def __init__(self):
+        super(DeQuantizer, self).__init__()
+
+        self.scale = torch.nn.Parameter()

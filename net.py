@@ -1,4 +1,3 @@
-from turtle import forward
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -78,7 +77,7 @@ class MNISTClassifier:
 
                 if (bidx + 1) % PRINT_EVERY == 0:
                     end_time = time.time()
-                    print(f'Training:: [{(bidx + 1) * batch_size} / {len(train_loader) * batch_size}]: '
+                    print(f'Training:: [{epoch}][{(bidx + 1) * batch_size} / {len(train_loader) * batch_size}]: '
                           f'loss_i={round(loss.item(), 4)}  -  loss_avg={round(avg_train_loss / (bidx + 1), 4)}  -  '
                           f'acc_i={round(train_accuracy, 4)}  -  '
                           f'acc_avg={round(avg_train_accuracy / (bidx + 1), 4)}  -  '
