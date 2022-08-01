@@ -1,3 +1,4 @@
+from turtle import forward
 import torch
 import torch.nn as nn
 
@@ -15,39 +16,71 @@ class Conv2DBlock(nn.Module):
         return self.block(x)
 
 # Straight-Through Estimator (STE)
-class DiscreteFunction(torch.autograd.Function):
-    def __init__(self, func):
-        super(DiscreteFunction, self).__init__()
-        self.func = func
+class Quantize(torch.autograd.Function):
+    def __init__(self, vmin, vmax, qmin, qmax):
+        super(Quantize, self).__init__()
+
+        self.vmin = vmin
+        self.vmax = vmax
+        self.qmin = qmin
+        self.qmax = qmax
+        vrange = self.vmax - self.vmin
+        qrange = self.qmin - self.qmax
+        self.s = vrange / qrange
+        self.z = round((vmax * qmin - vmin * qmax) / vrange)
+
+        print('s: ', self.s)
+        print('z: ', self.z)
 
     def forward(self, ctx, input):
-        return self.func(input)
+        #ctx.save_for_backward(input)
+        return torch.clamp(torch.round(self.s * input) - self.z, self.qmin, self.qmax)
 
     def backward(self, ctx, output_grad):
+        #result = ctx.saved_tensors
+        #gradient = output_grad * result
         # clip in [-1, 1]
         #return torch.nn.HardTanh(output_grad)
+        return 1.0 if output_grad >= -1 and output_grad <= 1 else 0.0
+
+class DeQuantize(torch.autograd.Function):
+    def __init__(self, vmin, vmax, qmin, qmax):
+        super(DeQuantize, self).__init__()
+
+        self.vmin = vmin
+        self.vmax = vmax
+        self.qmin = qmin
+        self.qmax = qmax
+        vrange = self.vmax - self.vmin
+        qrange = self.qmin - self.qmax
+        self.s = vrange / qrange
+        self.z = round((vmax * qmin - vmin * qmax) / vrange)        
+
+    def forward(self, ctx, input):
+        return torch.float32((input - self.z) * self.s)
+
+    def backward(self, ctx, output_grad):
         return torch.clip(output_grad, -1, 1)
 
-class Quantizer(nn.Module):
-    def __init__(self, min_val, max_val, is_signed=False):
-        super(Quantizer, self).__init__()
+if __name__ == '__main__':
+    bit = 8
+    qmin = -(1 << (bit - 1)) + 1
+    qmax = (1 << (bit -1)) - 1
+    print(f'[{qmin}, {qmax}]')
 
-        self.is_signed = is_signed
+    a = torch.FloatTensor([3.45, 5.434563, 1.23343])
+    b = torch.FloatTensor([2.45, 9.934563, 3.25843])
+    c = torch.multiply(a, b)
+    print(c)
 
-        self.scale = torch.nn.Parameter(max_val - min_val, dtype=torch.int8)
-        self.zero_pnt = torch.nn.Parameter(0, dtype=torch.int8)
-        self.bit_depth = torch.nn.Parameter(8, dtype=torch.int8)
+    cmin = 0; cmax = 100
+    amin = 0; amax = 10
+    bmin = 0; bmax = 10
 
-    def forward(self, x):
-        quantize = lambda x: torch.clamp()
-        ste = DiscreteFunction(quantize)
-        val = 1 << self.bit_depth
-        half_val >>= 1
-        return ste.forward(quantize, -half_val - 1, half_val - 1) if self.is_signed \
-            else ste.forward(quantize, 0, val - 1)
+    quantize = Quantize(amin, amax, qmin, qmax)
+    aq = quantize.forward(ctx=None, input=a)
+    dequantize = Quantize(bmin, bmax, qmin, qmax)
+    bq = dequantize.forward(ctx=None, input=b)
 
-class DeQuantizer(nn.Module):
-    def __init__(self):
-        super(DeQuantizer, self).__init__()
-
-        self.scale = torch.nn.Parameter()
+    print(aq)
+    print(bq)

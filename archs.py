@@ -39,7 +39,9 @@ class MNISTNet(nn.Module):
     def forward(self, x):        
         return self.model_tail(self.model_head(x)).view(-1, self.num_classes)
 
-# Note: Distillation network
+# Note: QAT network (learns to model and compensate for quantization noise introduced)
 class MNISTQuantizedNet(nn.Module):
     def __init__(self):
         pass
+
+# TODO: Add distillation network over the frozen model
